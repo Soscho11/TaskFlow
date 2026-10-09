@@ -9,7 +9,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = 5000;
+// Render-এর দেওয়া PORT ধরবে, লোকাল মেশিনে চললে 5000 ব্যবহার করবে
+const PORT = process.env.PORT || 5000;
 
 
 // =========================
@@ -21,7 +22,14 @@ const db = mysql.createPool({
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    port: process.env.DB_PORT
+    port: Number(process.env.DB_PORT) || 3306,
+    ssl: {
+        // Aiven Cloud ডেটাবেসে SSL হ্যান্ডেল করার জন্য এটি প্রয়োজন
+        rejectUnauthorized: false
+    },
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
 
@@ -41,10 +49,11 @@ app.get("/api/db-test", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("DB Test Error:", error);
 
         res.status(500).json({
-            message: "MySQL connection failed!"
+            message: "MySQL connection failed!",
+            error: error.message
         });
     }
 });
@@ -85,8 +94,8 @@ app.post("/api/register", async (req, res) => {
         );
 
         const [result] = await db.query(
-            `INSERT INTO users
-            (name, email, password)
+            `INSERT INTO users 
+            (name, email, password) 
             VALUES (?, ?, ?)`,
             [
                 name,
@@ -101,10 +110,11 @@ app.post("/api/register", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Register Error:", error);
 
         res.status(500).json({
-            message: "Registration failed!"
+            message: "Registration failed!",
+            error: error.message
         });
     }
 });
@@ -161,10 +171,11 @@ app.post("/api/login", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Login Error:", error);
 
         res.status(500).json({
-            message: "Login failed!"
+            message: "Login failed!",
+            error: error.message
         });
     }
 });
@@ -180,10 +191,16 @@ app.get("/api/tasks", async (req, res) => {
             user_id
         } = req.query;
 
+        if (!user_id) {
+            return res.status(400).json({
+                message: "User ID is required!"
+            });
+        }
+
         const [rows] = await db.query(
-            `SELECT *
-             FROM tasks
-             WHERE user_id = ?
+            `SELECT * 
+             FROM tasks 
+             WHERE user_id = ? 
              ORDER BY id DESC`,
             [user_id]
         );
@@ -191,10 +208,11 @@ app.get("/api/tasks", async (req, res) => {
         res.json(rows);
 
     } catch (error) {
-        console.error(error);
+        console.error("Fetch Tasks Error:", error);
 
         res.status(500).json({
-            message: "Failed to fetch tasks!"
+            message: "Failed to fetch tasks!",
+            error: error.message
         });
     }
 });
@@ -221,8 +239,8 @@ app.post("/api/tasks", async (req, res) => {
         }
 
         const [result] = await db.query(
-            `INSERT INTO tasks
-            (user_id, title, description, priority, deadline)
+            `INSERT INTO tasks 
+            (user_id, title, description, priority, deadline) 
             VALUES (?, ?, ?, ?, ?)`,
             [
                 user_id,
@@ -239,10 +257,11 @@ app.post("/api/tasks", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Create Task Error:", error);
 
         res.status(500).json({
-            message: "Failed to create task!"
+            message: "Failed to create task!",
+            error: error.message
         });
     }
 });
@@ -267,12 +286,12 @@ app.put("/api/tasks/:id", async (req, res) => {
         } = req.body;
 
         const [result] = await db.query(
-            `UPDATE tasks
-             SET title = ?,
-                 description = ?,
-                 status = ?,
-                 priority = ?,
-                 deadline = ?
+            `UPDATE tasks 
+             SET title = ?, 
+                 description = ?, 
+                 status = ?, 
+                 priority = ?, 
+                 deadline = ? 
              WHERE id = ?`,
             [
                 title,
@@ -295,10 +314,11 @@ app.put("/api/tasks/:id", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Update Task Error:", error);
 
         res.status(500).json({
-            message: "Failed to update task!"
+            message: "Failed to update task!",
+            error: error.message
         });
     }
 });
@@ -330,10 +350,11 @@ app.delete("/api/tasks/:id", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Delete Task Error:", error);
 
         res.status(500).json({
-            message: "Failed to delete task!"
+            message: "Failed to delete task!",
+            error: error.message
         });
     }
 });
@@ -366,8 +387,7 @@ app.get("/api/message", (req, res) => {
 // Start Server
 // =========================
 
-app.listen(PORT, () => {
-    console.log(
-        `Server running on http://localhost:${PORT}`
-    );
+
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT}`);
 });
