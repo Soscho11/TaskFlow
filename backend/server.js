@@ -9,13 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Render-এর দেওয়া PORT ধরবে, লোকাল মেশিনে চললে 5000 ব্যবহার করবে
 const PORT = process.env.PORT || 5000;
-
-
-// =========================
-// MySQL Connection
-// =========================
 
 const db = mysql.createPool({
     host: process.env.DB_HOST,
@@ -24,7 +18,6 @@ const db = mysql.createPool({
     database: process.env.DB_NAME,
     port: Number(process.env.DB_PORT) || 3306,
     ssl: {
-        // Aiven Cloud ডেটাবেসে SSL হ্যান্ডেল করার জন্য এটি প্রয়োজন
         rejectUnauthorized: false
     },
     waitForConnections: true,
@@ -32,25 +25,15 @@ const db = mysql.createPool({
     queueLimit: 0
 });
 
-
-// =========================
-// Test MySQL Connection
-// =========================
-
 app.get("/api/db-test", async (req, res) => {
     try {
-        const [rows] = await db.query(
-            "SELECT 1 AS result"
-        );
-
+        const [rows] = await db.query("SELECT 1 AS result");
         res.json({
             message: "MySQL connected successfully!",
             result: rows[0]
         });
-
     } catch (error) {
         console.error("DB Test Error:", error);
-
         res.status(500).json({
             message: "MySQL connection failed!",
             error: error.message
@@ -58,18 +41,9 @@ app.get("/api/db-test", async (req, res) => {
     }
 });
 
-
-// =========================
-// Register User
-// =========================
-
 app.post("/api/register", async (req, res) => {
     try {
-        const {
-            name,
-            email,
-            password
-        } = req.body;
+        const { name, email, password } = req.body;
 
         if (!name || !email || !password) {
             return res.status(400).json({
@@ -88,30 +62,19 @@ app.post("/api/register", async (req, res) => {
             });
         }
 
-        const hashedPassword = await bcrypt.hash(
-            password,
-            10
-        );
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         const [result] = await db.query(
-            `INSERT INTO users 
-            (name, email, password) 
-            VALUES (?, ?, ?)`,
-            [
-                name,
-                email,
-                hashedPassword
-            ]
+            "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+            [name, email, hashedPassword]
         );
 
         res.json({
             message: "User registered successfully!",
             user_id: result.insertId
         });
-
     } catch (error) {
         console.error("Register Error:", error);
-
         res.status(500).json({
             message: "Registration failed!",
             error: error.message
@@ -119,17 +82,9 @@ app.post("/api/register", async (req, res) => {
     }
 });
 
-
-// =========================
-// Login User
-// =========================
-
 app.post("/api/login", async (req, res) => {
     try {
-        const {
-            email,
-            password
-        } = req.body;
+        const { email, password } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({
@@ -149,11 +104,7 @@ app.post("/api/login", async (req, res) => {
         }
 
         const user = rows[0];
-
-        const passwordMatch = await bcrypt.compare(
-            password,
-            user.password
-        );
+        const passwordMatch = await bcrypt.compare(password, user.password);
 
         if (!passwordMatch) {
             return res.status(401).json({
@@ -169,10 +120,8 @@ app.post("/api/login", async (req, res) => {
                 email: user.email
             }
         });
-
     } catch (error) {
         console.error("Login Error:", error);
-
         res.status(500).json({
             message: "Login failed!",
             error: error.message
@@ -180,16 +129,9 @@ app.post("/api/login", async (req, res) => {
     }
 });
 
-
-// =========================
-// Get User's Tasks
-// =========================
-
 app.get("/api/tasks", async (req, res) => {
     try {
-        const {
-            user_id
-        } = req.query;
+        const { user_id } = req.query;
 
         if (!user_id) {
             return res.status(400).json({
@@ -198,18 +140,13 @@ app.get("/api/tasks", async (req, res) => {
         }
 
         const [rows] = await db.query(
-            `SELECT * 
-             FROM tasks 
-             WHERE user_id = ? 
-             ORDER BY id DESC`,
+            "SELECT * FROM tasks WHERE user_id = ? ORDER BY id DESC",
             [user_id]
         );
 
         res.json(rows);
-
     } catch (error) {
         console.error("Fetch Tasks Error:", error);
-
         res.status(500).json({
             message: "Failed to fetch tasks!",
             error: error.message
@@ -217,20 +154,9 @@ app.get("/api/tasks", async (req, res) => {
     }
 });
 
-
-// =========================
-// Create Task
-// =========================
-
 app.post("/api/tasks", async (req, res) => {
     try {
-        const {
-            user_id,
-            title,
-            description,
-            priority,
-            deadline
-        } = req.body;
+        const { user_id, title, description, priority, deadline } = req.body;
 
         if (!user_id || !title) {
             return res.status(400).json({
@@ -239,26 +165,16 @@ app.post("/api/tasks", async (req, res) => {
         }
 
         const [result] = await db.query(
-            `INSERT INTO tasks 
-            (user_id, title, description, priority, deadline) 
-            VALUES (?, ?, ?, ?, ?)`,
-            [
-                user_id,
-                title,
-                description || "",
-                priority || "medium",
-                deadline || null
-            ]
+            "INSERT INTO tasks (user_id, title, description, priority, deadline) VALUES (?, ?, ?, ?, ?)",
+            [user_id, title, description || "", priority || "medium", deadline || null]
         );
 
         res.json({
             message: "Task created successfully!",
             task_id: result.insertId
         });
-
     } catch (error) {
         console.error("Create Task Error:", error);
-
         res.status(500).json({
             message: "Failed to create task!",
             error: error.message
@@ -266,41 +182,14 @@ app.post("/api/tasks", async (req, res) => {
     }
 });
 
-
-// =========================
-// Update Task
-// =========================
-
 app.put("/api/tasks/:id", async (req, res) => {
     try {
-        const {
-            id
-        } = req.params;
-
-        const {
-            title,
-            description,
-            status,
-            priority,
-            deadline
-        } = req.body;
+        const { id } = req.params;
+        const { title, description, status, priority, deadline } = req.body;
 
         const [result] = await db.query(
-            `UPDATE tasks 
-             SET title = ?, 
-                 description = ?, 
-                 status = ?, 
-                 priority = ?, 
-                 deadline = ? 
-             WHERE id = ?`,
-            [
-                title,
-                description,
-                status,
-                priority || "medium",
-                deadline || null,
-                id
-            ]
+            "UPDATE tasks SET title = ?, description = ?, status = ?, priority = ?, deadline = ? WHERE id = ?",
+            [title, description, status, priority || "medium", deadline || null, id]
         );
 
         if (result.affectedRows === 0) {
@@ -312,10 +201,8 @@ app.put("/api/tasks/:id", async (req, res) => {
         res.json({
             message: "Task updated successfully!"
         });
-
     } catch (error) {
         console.error("Update Task Error:", error);
-
         res.status(500).json({
             message: "Failed to update task!",
             error: error.message
@@ -323,16 +210,9 @@ app.put("/api/tasks/:id", async (req, res) => {
     }
 });
 
-
-// =========================
-// Delete Task
-// =========================
-
 app.delete("/api/tasks/:id", async (req, res) => {
     try {
-        const {
-            id
-        } = req.params;
+        const { id } = req.params;
 
         const [result] = await db.query(
             "DELETE FROM tasks WHERE id = ?",
@@ -348,10 +228,8 @@ app.delete("/api/tasks/:id", async (req, res) => {
         res.json({
             message: "Task deleted successfully!"
         });
-
     } catch (error) {
         console.error("Delete Task Error:", error);
-
         res.status(500).json({
             message: "Failed to delete task!",
             error: error.message
@@ -359,34 +237,15 @@ app.delete("/api/tasks/:id", async (req, res) => {
     }
 });
 
-
-// =========================
-// Home Route
-// =========================
-
 app.get("/", (req, res) => {
-    res.send(
-        "TaskFlow Backend is running!"
-    );
+    res.send("TaskFlow Backend is running!");
 });
-
-
-// =========================
-// Message Route
-// =========================
 
 app.get("/api/message", (req, res) => {
     res.json({
-        message:
-            "Hello from TaskFlow Backend!"
+        message: "Hello from TaskFlow Backend!"
     });
 });
-
-
-// =========================
-// Start Server
-// =========================
-
 
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
