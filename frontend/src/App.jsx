@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const API = "http://localhost:5000/api";
+const API = "https://taskflow-backend-djmq.onrender.com/api";
 
 function App() {
     const [mode, setMode] = useState("login");
